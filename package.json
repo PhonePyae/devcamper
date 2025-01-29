@@ -1,0 +1,16 @@
+{
+  "name": "devcamper_api",
+  "version": "1.0.0",
+  "main": "server.js",
+  "scripts": {
+    "start": "NODE_ENV=production node --watch server",
+    "dev": "node --watch server"
+  },
+  "author": "Bob Phone Pyae",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2"
+  }
+}
