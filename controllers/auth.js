@@ -2,6 +2,7 @@ const User = require('../models/User');
 const ErrorResponse = require('../utils/errorResponse');
 const asyncHandler = require('../middleware/async');
 const sendEmail = require('../utils/sendEmail');
+const crypto = require('crypto');
 
 //@desc     Register user
 //@route    POST /api/v1/auth/register
@@ -73,40 +74,92 @@ const sendTokenResponse = (user, statusCode, res)=>{
 //@desc     Forgot password
 //@route    POST /api/v1/auth/forgotpassword
 //@access   public 
-exports.forgotPassword = asyncHandler(async (req,res,next)=>{
-    const user = await User.findOne({email: req.body.email});
 
-    if(!user){
+exports.forgotPassword = asyncHandler(async (req, res, next) => {
+    const user = await User.findOne({ email: req.body.email });
+
+    if (!user) {
         return next(new ErrorResponse(`There is no user with that email ${req.body.email}`, 404));
     }
 
-    //Reset token
+    // Generate reset token
     const resetToken = user.getResetPasswordToken();
 
-    //Create reset url
-    const resetURL = `${req.protocol}://${req.get('host')}/api/v1/resetpassword/${resetToken}`;
+    // Log tokens for debugging
+    console.log("Raw Reset Token (sent in email):", resetToken);
+    console.log("Hashed Token (stored in DB):", user.resetPasswordToken);
 
-    const message = `You are receiving this email because you (or someone else) has requested the reset of a password. Please maek a PUT request to: \n \n ${resetURL}`;
+    // Save user with new reset token BEFORE sending email
+    await user.save({ validateBeforeSave: false });
 
-    console.log(resetToken, resetURL);
+    // Create reset URL
+    const resetURL = `${req.protocol}://${req.get('host')}/api/v1/auth/resetpassword/${resetToken}`;
 
-    try{
+    const message = `You are receiving this email because you (or someone else) has requested the reset of a password. Please make a PUT request to: \n\n ${resetURL}`;
+
+    try {
         await sendEmail({
             email: user.email,
             subject: 'Password Reset Token',
             message
         });
 
-        return res.status(200).json({success: true, data: 'Email Sent'});
-    }catch(err){
+        return res.status(200).json({ success: true, data: 'Email Sent' });
+    } catch (err) {
         console.log(err);
         user.resetPasswordToken = undefined;
         user.resetPasswordExpire = undefined;
-
-        await user.save({validateBeforeSave: false});
+        await user.save({ validateBeforeSave: false });
 
         return next(new ErrorResponse(`Email was not sent`, 500));
     }
+});
 
-    await user.save({validateBeforeSave: false});
+
+//@desc     Reset password 
+//@route    PUT /api/v1/auth/resetpassword/:resettoken
+//@access   public 
+exports.resetPassword = asyncHandler(async (req, res, next) => {
+    const resetPasswordToken = crypto.createHash('sha256').update(req.params.resettoken).digest('hex');
+    console.log("Received token (hashed):", resetPasswordToken);
+
+    const user = await User.findOne({
+        resetPasswordToken,
+        resetPasswordExpire: { $gt: Date.now() }
+    });
+
+    if (!user) {
+        console.log("User not found for token:", resetPasswordToken);
+        return next(new ErrorResponse(`Invalid Token`, 400));
+    }
+
+    // Set new password
+    user.password = req.body.password;
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpire = undefined;
+    await user.save();
+    
+    sendTokenResponse(user, 200, res);
+});
+
+
+exports.resetPassword_bk = asyncHandler(async (req,res,next)=>{
+    //Get hased token
+    const resetPasswordToken = crypto.createHash('sha256').update(req.params.resettoken).digest('hex');
+
+    const user = await User.findOne({
+        resetPasswordToken,
+        resetPasswordExpire: {$gt: Date.now()}
+    });
+
+    if(!user){
+        return next(new ErrorResponse(`Invalid Token`, 400)); 
+    }
+
+    //Set new password
+    user.password = req.body.password; 
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpire = undefined;
+    await user.save();
+    sendTokenResponse(user, 200, res);
 });
