@@ -47,7 +47,18 @@ app.use(fileupload());
 app.use(mongoSanitize()); // example use case {"email": {"$gt":""}, "password": "asdfhij"}
 
 //Security header
-app.use(helmet());
+app.use(
+    helmet({
+        contentSecurityPolicy: {
+            directives: {
+                defaultSrc: ["'self'"],
+                scriptSrc: ["'self'", "'unsafe-inline'"], // Allows inline scripts
+                styleSrc: ["'self'", "'unsafe-inline'", "fonts.googleapis.com"], // Allow inline styles
+            },
+        },
+    })
+);
+
 
 //Prevent XSS Attack 
 app.use(xssClean ());
