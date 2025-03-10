@@ -9,6 +9,9 @@ const connectDB = require('./config/db');
 const mongoSanitize = require('express-mongo-sanitize');  // Prevent NoSQL Injection
 const helmet = require('helmet'); // Adding Security Headers
 const xssClean = require('xss-clean'); // XSS Protection
+const expressRateLimit = require('express-rate-limit'); //Rate limiting
+const hpp = require('hpp'); // Prevent Hpp pollution
+const cors = require('cors'); //CORS  
 const path = require('path');
 
 // Load env vars 
@@ -48,6 +51,20 @@ app.use(helmet());
 
 //Prevent XSS Attack 
 app.use(xssClean ());
+
+//Rate limiting
+const limiter = expressRateLimit({
+    windowMs : 10 * 60 * 1000, //10 mins
+    max: 100 //per request 
+}); 
+
+app.use(limiter);
+
+//Prevent Http Params Pollution 
+app.use(hpp());
+
+//Enable CORS
+app.use(cors());
 
 //Set static folder
 app.use(express.static(path.join(__dirname, 'public')));
