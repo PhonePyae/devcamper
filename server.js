@@ -6,7 +6,9 @@ const fileupload = require('express-fileupload');
 const cookieParser = require('cookie-parser');
 const errorHandler = require('./middleware/error');
 const connectDB = require('./config/db');
-const mongoSanitize = require('express-mongo-sanitize');
+const mongoSanitize = require('express-mongo-sanitize');  // Prevent NoSQL Injection
+const helmet = require('helmet'); // Adding Security Headers
+const xssClean = require('xss-clean'); // XSS Protection
 const path = require('path');
 
 // Load env vars 
@@ -40,6 +42,12 @@ app.use(fileupload());
 
 // Sanitize data 
 app.use(mongoSanitize()); // example use case {"email": {"$gt":""}, "password": "asdfhij"}
+
+//Security header
+app.use(helmet());
+
+//Prevent XSS Attack 
+app.use(xssClean ());
 
 //Set static folder
 app.use(express.static(path.join(__dirname, 'public')));
