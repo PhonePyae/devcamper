@@ -69,7 +69,7 @@ ReviewSchema.post('save', function() {
 });
 
 // Middleware: Call getAverageCost before deleting a course
-ReviewSchema.pre('findOneAndDelete', async function(next) {
+ReviewSchema.pre('findOneAndDelete', async function( next) {
     // Get the review that is being deleted
     const review = await this.model.findOne(this.getQuery());
 
